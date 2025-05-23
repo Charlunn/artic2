@@ -21,12 +21,13 @@ export const viewport: Viewport = {
   ],
 }
 
-export default function RootLayout({
+export default async function RootLayout({ // Made this function async
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const acceptLanguage = headers().get('accept-language');
+  const headersList = await headers(); // Await headers() call
+  const acceptLanguage = headersList.get('accept-language');
   let initialLocale: "en" | "zh" = "zh"; // Default to Chinese
   if (acceptLanguage) {
     const preferredLocales = acceptLanguage.split(',').map(lang => lang.split(';')[0].toLowerCase());
