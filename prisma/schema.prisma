@@ -1,0 +1,179 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  user_id         String              @id @default(cuid())
+  username        String              @unique
+  email           String              @unique
+  password_hash   String
+  role            Role                @default(user)
+  settings_language String            @default("en") // Default to English
+  settings_theme  String            @default("light") // Default to light theme
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @updatedAt
+
+  // Learning Plan Fields
+  learning_plan_start_date DateTime?
+  learning_plan_end_date   DateTime?
+  learning_plan_study_days_of_week Json?     // e.g., [0, 1, 2, 3, 4] for Sun-Thu
+  learning_plan_preferred_exam_target String? // e.g., "TOEFL", "IELTS", "CET-4"
+
+  articles        Article[]
+  learningRecords UserLearningRecord[]
+  reviewHistory   UserReviewHistory[]
+
+  @@map("users")
+}
+
+model Article {
+  article_id      String            @id @default(cuid())
+  user_id         String
+  title           String
+  content         String            @db.Text
+  translated_content String?        @db.Text
+  source_url      String?
+  status          String? // e.g., 'draft', 'published'
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  author          User              @relation(fields: [user_id], references: [user_id])
+  tags            ArticleTag[]
+  newWords        ArticleNewWord[]
+  phrases         ArticlePhrase[]
+  comprehensionQuestions ArticleReadingComprehensionQuestion[]
+  learningRecords UserLearningRecord[] // Added inverse relation
+
+  @@map("articles")
+}
+
+model Tag {
+  tag_id     String       @id @default(cuid())
+  name       String       @unique
+  created_at DateTime     @default(now())
+  articles   ArticleTag[]
+
+  @@map("tags")
+}
+
+model ArticleTag {
+  article_id String
+  tag_id     String
+  assigned_at DateTime @default(now())
+  article    Article  @relation(fields: [article_id], references: [article_id])
+  tag        Tag      @relation(fields: [tag_id], references: [tag_id])
+
+  @@id([article_id, tag_id])
+  @@map("article_tags_junction")
+}
+
+model ArticleNewWord {
+  new_word_id String   @id @default(cuid())
+  article_id  String
+  word        String
+  definition  String?
+  created_at  DateTime @default(now())
+  article     Article  @relation(fields: [article_id], references: [article_id])
+
+  @@map("article_new_words")
+}
+
+model ArticlePhrase {
+  phrase_id  String   @id @default(cuid())
+  article_id String
+  phrase     String
+  meaning    String?
+  created_at DateTime @default(now())
+  article    Article  @relation(fields: [article_id], references: [article_id])
+
+  @@map("article_phrases")
+}
+
+model ArticleReadingComprehensionQuestion {
+  question_id String                               @id @default(cuid())
+  article_id  String
+  question_text String
+  created_at  DateTime                             @default(now())
+  article     Article                              @relation(fields: [article_id], references: [article_id])
+  options     ArticleReadingComprehensionOption[]
+
+  @@map("article_reading_comprehension_questions")
+}
+
+model ArticleReadingComprehensionOption {
+  option_id   String                            @id @default(cuid())
+  question_id String
+  option_text String
+  is_correct  Boolean
+  created_at  DateTime                          @default(now())
+  question    ArticleReadingComprehensionQuestion @relation(fields: [question_id], references: [question_id])
+
+  @@map("article_reading_comprehension_options")
+}
+
+model UserLearningRecord {
+  record_id    String   @id @default(cuid())
+  user_id      String
+  article_id   String   // Changed to non-nullable for the unique constraint
+  article_title_cache String // Added
+  
+  word_id      String?  // Can be null if not word-specific
+  phrase_id    String?  // Can be null if not phrase-specific
+  
+  activity_type String  // e.g., 'read_article', 'learned_word', 'completed_quiz'
+  score        Int?     // e.g. for quizzes
+
+  // Timers
+  timer_skimming Int               @default(0) // Added
+  timer_intensive_reading Int     @default(0) // Added
+  // Add other specific timers if needed, or use a JSON field for flexible timer tracking
+
+  total_learning_time_for_article Int @default(0) // Added, sum of all learning-related timers for this article
+
+  // Learning Status
+  is_first_time_learning Boolean  @default(true) // Added
+  date_learned DateTime?                      // Added, set when user marks article as completed
+  
+  // Review Status
+  review_next_date DateTime?                 // Added
+  review_current_level Int        @default(0) // Added
+  review_total_times Int          @default(0) // Added
+  review_total_duration_for_article Int @default(0) // Added, sum of all review durations
+
+  created_at   DateTime @default(now()) // Renamed from completed_at, marks record creation
+  last_studied_date DateTime @updatedAt   // Added, automatically updates on modification
+
+  user         User     @relation(fields: [user_id], references: [user_id])
+  article      Article  @relation(fields: [article_id], references: [article_id]) // Added relation for easier fetching of article details
+
+  reviewHistory UserReviewHistory[] // Added relation to UserReviewHistory
+
+  @@unique([user_id, article_id]) 
+  @@map("user_learning_records")
+}
+
+model UserReviewHistory {
+  review_id        String   @id @default(cuid())
+  user_id          String
+  record_id        String   
+  duration_seconds Int      
+  level_reviewed_at Int     
+  reviewed_at      DateTime @default(now()) 
+  
+  user             User     @relation(fields: [user_id], references: [user_id])
+  learning_record  UserLearningRecord @relation(fields: [record_id], references: [record_id], onDelete: Cascade) // Added onDelete Cascade
+
+  @@map("user_review_history")
+}
+
+enum Role {
+  user
+  admin
+}
