@@ -32,8 +32,22 @@ const ProcessArticleOutputSchema = z.object({
     .array(z.object({phrase: z.string(), translation: z.string(), example: z.string().optional()}))
     .describe('Key phrases, their translations, and example sentences.'),
   readingComprehensionQuestions: z
-    .array(z.object({question: z.string(), answer: z.string()}))
-    .describe('Reading comprehension questions and their answers.'),
+    .array(
+      z.object({
+        question: z.string().describe('The text of the reading comprehension question.'),
+        options: z
+          .array(
+            z.object({
+              option_text: z.string().describe('The text of a multiple-choice option.'),
+              is_correct: z.boolean().describe('Indicates if this option is the correct answer.'),
+            })
+          )
+          .min(3) // Ensure at least 3 options
+          .describe('An array of multiple-choice options for the question.'),
+        explanation: z.string().describe('An explanation for why the correct answer is correct.'),
+      })
+    )
+    .describe('Reading comprehension questions, their multiple-choice options, and explanations for the correct answers.'),
 });
 export type ProcessArticleOutput = z.infer<typeof ProcessArticleOutputSchema>;
 
@@ -51,7 +65,7 @@ const processArticlePrompt = ai.definePrompt({
   1. Translating the article into Chinese.
   2. Identifying the {{maxNewWords}} most important new vocabulary words in the article, along with their translations.
   3. Identifying the {{maxPhrases}} most important phrases in the article, along with their translations and example sentences.
-  4. {{#if generateReadingComprehensionQuestions}}Generating reading comprehension questions based on the article.{{/if}}
+  4. {{#if generateReadingComprehensionQuestions}}Generating 5 reading comprehension multiple-choice questions based on the article. Each question should have 3-4 options, with one clearly marked as correct (using the 'is_correct' boolean field). Also, provide a brief explanation for why the correct answer is chosen. Format the output according to the schema, ensuring the 'readingComprehensionQuestions' array contains objects with 'question', 'options' (which is an array of objects with 'option_text' and 'is_correct'), and 'explanation' fields.{{/if}}
 
   Article:
   {{articleText}}`,

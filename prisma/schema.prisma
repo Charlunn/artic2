@@ -27,6 +27,13 @@ model User {
   learning_plan_study_days_of_week Json?     // e.g., [0, 1, 2, 3, 4] for Sun-Thu
   learning_plan_preferred_exam_target String? // e.g., "TOEFL", "IELTS", "CET-4"
 
+  stats_total_study_days            Int       @default(0)
+  stats_extra_study_days            Int       @default(0)
+  stats_extra_rest_days             Int       @default(0)
+  stats_net_extra_study_days        Int       @default(0)
+  stats_total_learning_time_overall Int       @default(0) // in seconds
+  stats_total_review_time_overall   Int       @default(0) // in seconds
+
   articles        Article[]
   learningRecords UserLearningRecord[]
   reviewHistory   UserReviewHistory[]
@@ -90,6 +97,7 @@ model ArticlePhrase {
   article_id String
   phrase     String
   meaning    String?
+  example    String?
   created_at DateTime @default(now())
   article    Article  @relation(fields: [article_id], references: [article_id])
 
@@ -100,6 +108,7 @@ model ArticleReadingComprehensionQuestion {
   question_id String                               @id @default(cuid())
   article_id  String
   question_text String
+  explanation String?
   created_at  DateTime                             @default(now())
   article     Article                              @relation(fields: [article_id], references: [article_id])
   options     ArticleReadingComprehensionOption[]
@@ -133,6 +142,10 @@ model UserLearningRecord {
   // Timers
   timer_skimming Int               @default(0) // Added
   timer_intensive_reading Int     @default(0) // Added
+  timer_vocabulary_building         Int       @default(0)
+  timer_phrase_learning             Int       @default(0)
+  timer_translation_practice        Int       @default(0)
+  timer_recitation                  Int       @default(0)
   // Add other specific timers if needed, or use a JSON field for flexible timer tracking
 
   total_learning_time_for_article Int @default(0) // Added, sum of all learning-related timers for this article
